@@ -1,0 +1,146 @@
+name: Build Promo Reels Pass 1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-promo-reels-pass1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+
+      - name: Download selected full-resolution sources
+        run: |
+          set -euo pipefail
+          mkdir -p src out
+          gh release download movie-premier-source --repo "$REPO" --dir src \
+            --pattern 'DJI_20260809212135_0067_D.MP4' \
+            --pattern 'DJI_20260809214230_0077_D.MP4' \
+            --pattern 'DJI_20260809215119_0079_D.MP4' \
+            --pattern 'DJI_20260809215305_0080_D.MP4' \
+            --pattern 'DJI_20260809215355_0081_D.MP4' \
+            --pattern 'DJI_20260809215712_0083_D.MP4' \
+            --pattern 'DJI_20260809221501_0088_D.MP4'
+          ls -lh src
+
+      - name: Build 29s cinematic BTS story
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffmpeg -hide_banner -y \
+            -i src/DJI_20260809212135_0067_D.MP4 \
+            -i src/DJI_20260809215119_0079_D.MP4 \
+            -i src/DJI_20260809215712_0083_D.MP4 \
+            -i src/DJI_20260809214230_0077_D.MP4 \
+            -i src/DJI_20260809221501_0088_D.MP4 \
+            -filter_complex "\
+            [0:v]trim=0:5,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v0];\
+            [0:a]atrim=0:5,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=4.97:d=0.03[a0];\
+            [0:v]trim=20:23,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v1];\
+            [0:a]atrim=20:23,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=2.97:d=0.03[a1];\
+            [1:v]trim=0:4,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v2];\
+            [1:a]atrim=0:4,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=3.97:d=0.03[a2];\
+            [1:v]trim=10:13,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v3];\
+            [1:a]atrim=10:13,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=2.97:d=0.03[a3];\
+            [2:v]trim=0:4,setpts=PTS-STARTPTS,crop=1215:2160:1650:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v4];\
+            [2:a]atrim=0:4,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=3.97:d=0.03[a4];\
+            [3:v]trim=60:64,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v5];\
+            [3:a]atrim=60:64,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=3.97:d=0.03[a5];\
+            [3:v]trim=170:174,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v6];\
+            [3:a]atrim=170:174,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=3.97:d=0.03[a6];\
+            [4:v]trim=190:192,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v7];\
+            [4:a]atrim=190:192,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=1.97:d=0.03[a7];\
+            [v0][a0][v1][a1][v2][a2][v3][a3][v4][a4][v5][a5][v6][a6][v7][a7]concat=n=8:v=1:a=1[v][a];\
+            [a]dynaudnorm=f=250:g=5[aout]" \
+            -map '[v]' -map '[aout]' -c:v libx264 -preset medium -crf 18 -profile:v high \
+            -c:a aac -b:a 192k -movflags +faststart \
+            out/01_CINEMATIC_BTS_29S_PASS1.mp4
+
+      - name: Build 15s high-energy hero reel
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffmpeg -hide_banner -y \
+            -i src/DJI_20260809212135_0067_D.MP4 \
+            -i src/DJI_20260809214230_0077_D.MP4 \
+            -i src/DJI_20260809215305_0080_D.MP4 \
+            -i src/DJI_20260809215355_0081_D.MP4 \
+            -filter_complex "\
+            [0:v]trim=0:3,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v0];\
+            [0:a]atrim=0:3,asetpts=PTS-STARTPTS[a0];\
+            [0:v]trim=29:31.5,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v1];\
+            [0:a]atrim=29:31.5,asetpts=PTS-STARTPTS[a1];\
+            [1:v]trim=170:174,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v2];\
+            [1:a]atrim=170:174,asetpts=PTS-STARTPTS[a2];\
+            [2:v]trim=30:33,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v3];\
+            [2:a]atrim=30:33,asetpts=PTS-STARTPTS[a3];\
+            [3:v]trim=10:12.5,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v4];\
+            [3:a]atrim=10:12.5,asetpts=PTS-STARTPTS[a4];\
+            [v0][a0][v1][a1][v2][a2][v3][a3][v4][a4]concat=n=5:v=1:a=1[v][a];\
+            [a]dynaudnorm=f=250:g=5[aout]" \
+            -map '[v]' -map '[aout]' -t 15 -c:v libx264 -preset medium -crf 18 -profile:v high \
+            -c:a aac -b:a 192k -movflags +faststart \
+            out/02_HIGH_ENERGY_HERO_15S_PASS1.mp4
+
+      - name: Build 15s behind-the-process reel
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffmpeg -hide_banner -y \
+            -i src/DJI_20260809212135_0067_D.MP4 \
+            -i src/DJI_20260809215712_0083_D.MP4 \
+            -i src/DJI_20260809214230_0077_D.MP4 \
+            -i src/DJI_20260809215355_0081_D.MP4 \
+            -filter_complex "\
+            [0:v]trim=20:23,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v0];\
+            [0:a]atrim=20:23,asetpts=PTS-STARTPTS[a0];\
+            [1:v]trim=0:4,setpts=PTS-STARTPTS,crop=1215:2160:1650:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v1];\
+            [1:a]atrim=0:4,asetpts=PTS-STARTPTS[a1];\
+            [2:v]trim=54:57,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v2];\
+            [2:a]atrim=54:57,asetpts=PTS-STARTPTS[a2];\
+            [2:v]trim=60:62.5,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v3];\
+            [2:a]atrim=60:62.5,asetpts=PTS-STARTPTS[a3];\
+            [3:v]trim=10:12.5,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v4];\
+            [3:a]atrim=10:12.5,asetpts=PTS-STARTPTS[a4];\
+            [v0][a0][v1][a1][v2][a2][v3][a3][v4][a4]concat=n=5:v=1:a=1[v][a];\
+            [a]dynaudnorm=f=250:g=5[aout]" \
+            -map '[v]' -map '[aout]' -t 15 -c:v libx264 -preset medium -crf 18 -profile:v high \
+            -c:a aac -b:a 192k -movflags +faststart \
+            out/03_BEHIND_THE_PROCESS_15S_PASS1.mp4
+
+      - name: QC outputs
+        run: |
+          set -euo pipefail
+          for f in out/*.mp4; do
+            echo "==== $f ===="
+            ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_name,width,height,r_frame_rate -of default=noprint_wrappers=1 "$f"
+          done
+
+      - name: Publish draft assets to GitHub Release
+        run: |
+          set -euo pipefail
+          if ! gh release view promo-reels-pass1 --repo "$REPO" >/dev/null 2>&1; then
+            gh release create promo-reels-pass1 --repo "$REPO" --title 'Promo Reels — Pass 1' --notes 'Three picture-first vertical promo edits from the fully reviewed August studio-session footage. 1080x1920 H.264/AAC. Source audio retained and normalized. No invented dialogue or event claims.'
+          fi
+          gh release upload promo-reels-pass1 out/*.mp4 --repo "$REPO" --clobber
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: promo-reels-pass1
+          path: out/*.mp4
+          retention-days: 7

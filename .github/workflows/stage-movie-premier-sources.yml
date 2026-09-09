@@ -1,0 +1,54 @@
+name: Stage Movie Premier Sources
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/stage-movie-premier-sources.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  stage-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Install gdown
+        run: python -m pip install --disable-pip-version-check gdown
+
+      - name: Download, verify, and attach remaining oversized sources sequentially
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          upload_one() {
+            local id="$1"
+            local name="$2"
+            local expected="$3"
+            echo "=== $name ==="
+            rm -f "$name"
+            gdown --id "$id" -O "$name"
+            actual=$(stat -c%s "$name")
+            echo "Expected: $expected bytes"
+            echo "Actual:   $actual bytes"
+            if [ "$actual" != "$expected" ]; then
+              echo "ERROR: size mismatch for $name" >&2
+              exit 1
+            fi
+            gh release upload movie-premier-source "$name" --repo "${GITHUB_REPOSITORY}" --clobber
+            echo "Uploaded $name"
+            rm -f "$name"
+          }
+
+          upload_one '1W-CEQOH5XrizXFOJplEYLYvUtz6vW2dA' 'DJI_20260809212135_0067_D.MP4' '278244762'
+          upload_one '1lRUZGMrBcU0hW9Rz47L8L6YGlaZKvyuZ' 'DJI_20260809212305_0068_D.MP4' '431620401'
+          upload_one '19ZrTFxCLPhKfld4Xu9YRtUtKwvUZQyQH' 'DJI_20260809214230_0077_D.MP4' '1443205444'
+          upload_one '1XbVZLqNhqTyVW2EE8OaUVydksEpeWExq' 'DJI_20260809215119_0079_D.MP4' '533448316'
+          upload_one '1XuTLnF2N8AR12zrpFwgmbvwkvSYqUcXL' 'DJI_20260809215305_0080_D.MP4' '270314233'
+          upload_one '1YkanuuldAheF6R07iL36brPt9_SaXm5y' 'DJI_20260809215355_0081_D.MP4' '273057180'
+          upload_one '1LCupNc3nVxeQOl-D9tq6HDbnNiugI9sW' 'DJI_20260809215523_0082_D.MP4' '326503792'
+          upload_one '1efm3-NWC8xICku54Zv9Hx8mtAlMIDQv1' 'DJI_20260809215712_0083_D.MP4' '556294451'
+          upload_one '1tUFdhHUPusazVOBVavUgsmvV4tGjpEBN' 'DJI_20260809221501_0088_D.MP4' '1287765679'

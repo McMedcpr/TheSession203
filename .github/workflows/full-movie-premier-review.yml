@@ -1,0 +1,106 @@
+name: Full Movie Premier Review
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/full-movie-premier-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Prepare review release and folders
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work review chunks
+          if ! gh release view movie-premier-review-chunks --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create movie-premier-review-chunks --repo "$GITHUB_REPOSITORY" --title "Movie Premier Review Chunks" --notes "10-second review chunks generated from the original Movie Premier source footage."
+          fi
+
+      - name: Decode, split, probe, and contact-sheet all ten sources sequentially
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          process_one() {
+            local code="$1"
+            local name="$2"
+            local expected="$3"
+            local stem="${name%.*}"
+            local src="work/$name"
+            local outdir="review/$code"
+            local chunkdir="chunks/$code"
+
+            echo "===== PROCESSING $code : $name ====="
+            mkdir -p "$outdir" "$chunkdir"
+            rm -f "$src"
+
+            gh release download movie-premier-source --repo "$GITHUB_REPOSITORY" --pattern "$name" --dir work --clobber
+            actual=$(stat -c%s "$src")
+            echo "Expected: $expected" | tee "$outdir/source_size.txt"
+            echo "Actual:   $actual" | tee -a "$outdir/source_size.txt"
+            if [ "$actual" != "$expected" ]; then
+              echo "ERROR size mismatch for $name" >&2
+              exit 1
+            fi
+
+            ffprobe -v error -show_format -show_streams -of json "$src" > "$outdir/ffprobe.json"
+
+            ffmpeg -hide_banner -loglevel warning -y -i "$src" \
+              -map 0:v:0 -map 0:a:0 -c copy \
+              -f segment -segment_time 10 -reset_timestamps 1 \
+              "$chunkdir/${stem}_CHUNK_%02d.mp4"
+
+            : > "$outdir/chunk_manifest.tsv"
+            for c in "$chunkdir"/*.mp4; do
+              size=$(stat -c%s "$c")
+              printf '%s\t%s\n' "$(basename "$c")" "$size" >> "$outdir/chunk_manifest.tsv"
+              if [ "$size" -gt 209715200 ]; then
+                echo "ERROR chunk exceeds 200 MiB: $c ($size)" >&2
+                exit 1
+              fi
+              gh release upload movie-premier-review-chunks "$c" --repo "$GITHUB_REPOSITORY" --clobber
+            done
+
+            ffmpeg -hide_banner -loglevel warning -y -i "$src" \
+              -vf "fps=2,scale=320:-2,tile=5x4:padding=4:margin=4" \
+              -q:v 3 -fps_mode vfr \
+              "$outdir/${stem}_SHEET_%02d.jpg"
+
+            ffmpeg -hide_banner -i "$src" \
+              -vf "select='gt(scene,0.20)',showinfo" -an -f null - \
+              > "$outdir/scene_stdout.txt" 2> "$outdir/scene_log.txt" || true
+
+            rm -f "$src"
+            rm -rf "$chunkdir"
+            echo "===== COMPLETE $code ====="
+          }
+
+          process_one '0065' 'DJI_20260809211941_0065_D.MP4' '405938140'
+          process_one '0067' 'DJI_20260809212135_0067_D.MP4' '278244762'
+          process_one '0068' 'DJI_20260809212305_0068_D.MP4' '431620401'
+          process_one '0077' 'DJI_20260809214230_0077_D.MP4' '1443205444'
+          process_one '0079' 'DJI_20260809215119_0079_D.MP4' '533448316'
+          process_one '0080' 'DJI_20260809215305_0080_D.MP4' '270314233'
+          process_one '0081' 'DJI_20260809215355_0081_D.MP4' '273057180'
+          process_one '0082' 'DJI_20260809215523_0082_D.MP4' '326503792'
+          process_one '0083' 'DJI_20260809215712_0083_D.MP4' '556294451'
+          process_one '0088' 'DJI_20260809221501_0088_D.MP4' '1287765679'
+
+      - name: Upload visual review materials
+        uses: actions/upload-artifact@v4
+        with:
+          name: movie-premier-review-materials
+          path: review
+          retention-days: 7

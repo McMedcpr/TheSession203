@@ -1,0 +1,98 @@
+name: Build Toads Place 60s Promo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-toads-60s-promo.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          python -m pip install --disable-pip-version-check gdown
+
+      - name: Download verified Toads Place reels only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p src out
+          gdown --id '1Uzz3fv7hmS3w6dusaS8dOpYmdFB1rCPl' -O src/location_first.mp4
+          gdown --id '1BmPZv8NKiuecCWtdHiqMMK_gDr8_PvEN' -O src/dj_neon.mp4
+          gdown --id '1S2-0aqwQ0IkvCqodWHTzXTFIBEZQVcwj' -O src/event_action.mp4
+          gdown --id '15emskgT0xB_W8DBnmqEETo-q5Rw57mcR' -O src/rockshop_pulse.mp4
+          gdown --id '1ZcFoxgbsJDDDGv-rSn5Zv17lYfxcCCh0' -O src/late_night.mp4
+          for f in src/*.mp4; do ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 "$f"; done
+
+      - name: Build 60 second Toads Place promo reel
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffmpeg -hide_banner -y \
+            -i src/location_first.mp4 \
+            -i src/dj_neon.mp4 \
+            -i src/event_action.mp4 \
+            -i src/rockshop_pulse.mp4 \
+            -i src/late_night.mp4 \
+            -filter_complex "\
+            [0:v]trim=start=0:end=8,setpts=PTS-STARTPTS,scale=1080:1920,fps=24000/1001,format=yuv420p[v0];\
+            [0:a]atrim=start=0:end=8,asetpts=PTS-STARTPTS,afade=t=in:d=0.05,afade=t=out:st=7.95:d=0.05[a0];\
+            [1:v]trim=start=2:end=14,setpts=PTS-STARTPTS,scale=1080:1920,fps=24000/1001,format=yuv420p[v1];\
+            [1:a]atrim=start=2:end=14,asetpts=PTS-STARTPTS,afade=t=in:d=0.05,afade=t=out:st=11.95:d=0.05[a1];\
+            [2:v]trim=start=2:end=14,setpts=PTS-STARTPTS,scale=1080:1920,fps=24000/1001,format=yuv420p[v2];\
+            [2:a]atrim=start=2:end=14,asetpts=PTS-STARTPTS,afade=t=in:d=0.05,afade=t=out:st=11.95:d=0.05[a2];\
+            [3:v]trim=start=2:end=14,setpts=PTS-STARTPTS,scale=1080:1920,fps=24000/1001,format=yuv420p[v3];\
+            [3:a]atrim=start=2:end=14,asetpts=PTS-STARTPTS,afade=t=in:d=0.05,afade=t=out:st=11.95:d=0.05[a3];\
+            [4:v]trim=start=2:end=14,setpts=PTS-STARTPTS,scale=1080:1920,fps=24000/1001,format=yuv420p[v4];\
+            [4:a]atrim=start=2:end=14,asetpts=PTS-STARTPTS,afade=t=in:d=0.05,afade=t=out:st=11.95:d=0.05[a4];\
+            [0:v]trim=start=16:end=20,setpts=PTS-STARTPTS,scale=1080:1920,fps=24000/1001,format=yuv420p[v5];\
+            [0:a]atrim=start=16:end=20,asetpts=PTS-STARTPTS,afade=t=in:d=0.05,afade=t=out:st=3.95:d=0.05[a5];\
+            [v0][a0][v1][a1][v2][a2][v3][a3][v4][a4][v5][a5]concat=n=6:v=1:a=1[vcat][acat];\
+            [acat]loudnorm=I=-14:TP=-1.5:LRA=11[aout]" \
+            -map '[vcat]' -map '[aout]' \
+            -t 60 \
+            -c:v libx264 -preset medium -crf 17 -profile:v high \
+            -c:a aac -b:a 192k -ar 48000 \
+            -movflags +faststart \
+            out/Session_Podcast_Toads_60s_EVENT_PROMO_PASS1.mp4
+
+      - name: QC output
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffprobe -v error \
+            -show_entries format=duration,size \
+            -show_entries stream=codec_name,width,height,r_frame_rate,sample_rate,channels \
+            -of default=noprint_wrappers=1 \
+            out/Session_Podcast_Toads_60s_EVENT_PROMO_PASS1.mp4
+          ffmpeg -v error -i out/Session_Podcast_Toads_60s_EVENT_PROMO_PASS1.mp4 -f null -
+
+      - name: Publish promo to GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view toads-60s-promo-pass1 --repo "$REPO" >/dev/null 2>&1; then
+            gh release create toads-60s-promo-pass1 --repo "$REPO" \
+              --title "Toad's Place 60s Event Promo — Pass 1" \
+              --notes "60-second vertical event-only promo assembled from the verified Toad's Place reel set. No studio footage. 1080x1920 H.264/AAC."
+          fi
+          gh release upload toads-60s-promo-pass1 out/Session_Podcast_Toads_60s_EVENT_PROMO_PASS1.mp4 --repo "$REPO" --clobber
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: toads-60s-promo-pass1
+          path: out/Session_Podcast_Toads_60s_EVENT_PROMO_PASS1.mp4
+          retention-days: 7

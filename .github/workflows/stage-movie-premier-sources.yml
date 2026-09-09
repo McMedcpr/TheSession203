@@ -1,3 +1,4 @@
+# Stages public Google Drive source videos into the GitHub release for CloudConvert review processing.
 name: Stage Movie Premier Sources
 
 on:

@@ -29,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p raw src seg out
-          get(){ gdown --id "$1" -O "raw/$2"; }
+          get(){ gdown "$1" -O "raw/$2"; }
           get '19xuiswZ1xAZcSF0D_Ov7EmWFfgKhGk6y' 'DJI_20260904193326_0001_D_CHUNK_00.mp4'
           get '1t7_R0GIe921d49R5PeGczQGxwfIPifTN' 'DJI_20260904193326_0001_D_CHUNK_01.mp4'
           get '1wSNQoCt9qofuQuWSIWh1V3XjNB-_lVqp' 'DJI_20260904193326_0001_D_CHUNK_02.mp4'

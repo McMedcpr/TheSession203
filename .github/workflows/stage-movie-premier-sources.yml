@@ -31,7 +31,7 @@ jobs:
             local expected="$3"
             echo "=== $name ==="
             rm -f "$name"
-            gdown --id "$id" -O "$name"
+            gdown "$id" -O "$name"
             actual=$(stat -c%s "$name")
             echo "Expected: $expected bytes"
             echo "Actual:   $actual bytes"

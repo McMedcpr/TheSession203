@@ -15,6 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
+      - name: Install FFmpeg
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
       - name: Prepare review release and folders
         env:
           GH_TOKEN: ${{ github.token }}
@@ -99,8 +105,10 @@ jobs:
           process_one '0088' 'DJI_20260809221501_0088_D.MP4' '1287765679'
 
       - name: Upload visual review materials
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: movie-premier-review-materials
           path: review
+          if-no-files-found: warn
           retention-days: 7

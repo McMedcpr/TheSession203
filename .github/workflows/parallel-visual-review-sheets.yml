@@ -1,0 +1,85 @@
+name: Parallel Visual Review Sheets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/parallel-visual-review-sheets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  review-sheets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - code: '0065'
+            name: 'DJI_20260809211941_0065_D.MP4'
+            expected: '405938140'
+          - code: '0067'
+            name: 'DJI_20260809212135_0067_D.MP4'
+            expected: '278244762'
+          - code: '0068'
+            name: 'DJI_20260809212305_0068_D.MP4'
+            expected: '431620401'
+          - code: '0077'
+            name: 'DJI_20260809214230_0077_D.MP4'
+            expected: '1443205444'
+          - code: '0079'
+            name: 'DJI_20260809215119_0079_D.MP4'
+            expected: '533448316'
+          - code: '0080'
+            name: 'DJI_20260809215305_0080_D.MP4'
+            expected: '270314233'
+          - code: '0081'
+            name: 'DJI_20260809215355_0081_D.MP4'
+            expected: '273057180'
+          - code: '0082'
+            name: 'DJI_20260809215523_0082_D.MP4'
+            expected: '326503792'
+          - code: '0083'
+            name: 'DJI_20260809215712_0083_D.MP4'
+            expected: '556294451'
+          - code: '0088'
+            name: 'DJI_20260809221501_0088_D.MP4'
+            expected: '1287765679'
+
+    steps:
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Download source and generate review sheets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODE: ${{ matrix.code }}
+          NAME: ${{ matrix.name }}
+          EXPECTED: ${{ matrix.expected }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "review/$CODE" source
+          gh release download movie-premier-source --repo "$GITHUB_REPOSITORY" --pattern "$NAME" --dir source --clobber
+          SRC="source/$NAME"
+          ACTUAL=$(stat -c%s "$SRC")
+          printf 'expected=%s\nactual=%s\n' "$EXPECTED" "$ACTUAL" > "review/$CODE/source_size.txt"
+          test "$ACTUAL" = "$EXPECTED"
+          ffprobe -v error -show_format -show_streams -of json "$SRC" > "review/$CODE/ffprobe.json"
+          STEM="${NAME%.*}"
+          ffmpeg -hide_banner -loglevel warning -y -i "$SRC" \
+            -vf "fps=2,scale=320:-2,tile=5x4:padding=4:margin=4" \
+            -q:v 3 -fps_mode vfr \
+            "review/$CODE/${STEM}_SHEET_%02d.jpg"
+
+      - name: Upload source review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-${{ matrix.code }}
+          path: review/${{ matrix.code }}
+          retention-days: 7

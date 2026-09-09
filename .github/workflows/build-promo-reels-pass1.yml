@@ -26,7 +26,7 @@ jobs:
       - name: Download selected full-resolution sources
         run: |
           set -euo pipefail
-          mkdir -p src out
+          mkdir -p src clips lists out
           gh release download movie-premier-source --repo "$REPO" --dir src \
             --pattern 'DJI_20260809212135_0067_D.MP4' \
             --pattern 'DJI_20260809214230_0077_D.MP4' \
@@ -37,98 +37,109 @@ jobs:
             --pattern 'DJI_20260809221501_0088_D.MP4'
           ls -lh src
 
-      - name: Build 29s cinematic BTS story
+      - name: Render selected shots sequentially
         shell: bash
         run: |
           set -euo pipefail
-          ffmpeg -hide_banner -y \
-            -i src/DJI_20260809212135_0067_D.MP4 \
-            -i src/DJI_20260809215119_0079_D.MP4 \
-            -i src/DJI_20260809215712_0083_D.MP4 \
-            -i src/DJI_20260809214230_0077_D.MP4 \
-            -i src/DJI_20260809221501_0088_D.MP4 \
-            -filter_complex "\
-            [0:v]trim=0:5,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v0];\
-            [0:a]atrim=0:5,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=4.97:d=0.03[a0];\
-            [0:v]trim=20:23,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v1];\
-            [0:a]atrim=20:23,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=2.97:d=0.03[a1];\
-            [1:v]trim=0:4,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v2];\
-            [1:a]atrim=0:4,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=3.97:d=0.03[a2];\
-            [1:v]trim=10:13,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v3];\
-            [1:a]atrim=10:13,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=2.97:d=0.03[a3];\
-            [2:v]trim=0:4,setpts=PTS-STARTPTS,crop=1215:2160:1650:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v4];\
-            [2:a]atrim=0:4,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=3.97:d=0.03[a4];\
-            [3:v]trim=60:64,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v5];\
-            [3:a]atrim=60:64,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=3.97:d=0.03[a5];\
-            [3:v]trim=170:174,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v6];\
-            [3:a]atrim=170:174,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=3.97:d=0.03[a6];\
-            [4:v]trim=190:192,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v7];\
-            [4:a]atrim=190:192,asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=1.97:d=0.03[a7];\
-            [v0][a0][v1][a1][v2][a2][v3][a3][v4][a4][v5][a5][v6][a6][v7][a7]concat=n=8:v=1:a=1[v][a];\
-            [a]dynaudnorm=f=250:g=5[aout]" \
-            -map '[v]' -map '[aout]' -c:v libx264 -preset medium -crf 18 -profile:v high \
-            -c:a aac -b:a 192k -movflags +faststart \
-            out/01_CINEMATIC_BTS_29S_PASS1.mp4
 
-      - name: Build 15s high-energy hero reel
-        shell: bash
-        run: |
-          set -euo pipefail
-          ffmpeg -hide_banner -y \
-            -i src/DJI_20260809212135_0067_D.MP4 \
-            -i src/DJI_20260809214230_0077_D.MP4 \
-            -i src/DJI_20260809215305_0080_D.MP4 \
-            -i src/DJI_20260809215355_0081_D.MP4 \
-            -filter_complex "\
-            [0:v]trim=0:3,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v0];\
-            [0:a]atrim=0:3,asetpts=PTS-STARTPTS[a0];\
-            [0:v]trim=29:31.5,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v1];\
-            [0:a]atrim=29:31.5,asetpts=PTS-STARTPTS[a1];\
-            [1:v]trim=170:174,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v2];\
-            [1:a]atrim=170:174,asetpts=PTS-STARTPTS[a2];\
-            [2:v]trim=30:33,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v3];\
-            [2:a]atrim=30:33,asetpts=PTS-STARTPTS[a3];\
-            [3:v]trim=10:12.5,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v4];\
-            [3:a]atrim=10:12.5,asetpts=PTS-STARTPTS[a4];\
-            [v0][a0][v1][a1][v2][a2][v3][a3][v4][a4]concat=n=5:v=1:a=1[v][a];\
-            [a]dynaudnorm=f=250:g=5[aout]" \
-            -map '[v]' -map '[aout]' -t 15 -c:v libx264 -preset medium -crf 18 -profile:v high \
-            -c:a aac -b:a 192k -movflags +faststart \
-            out/02_HIGH_ENERGY_HERO_15S_PASS1.mp4
+          make_clip() {
+            local src="$1"
+            local start="$2"
+            local dur="$3"
+            local crop_x="$4"
+            local dst="$5"
+            local fade_out
+            fade_out=$(awk -v d="$dur" 'BEGIN { printf "%.3f", d - 0.04 }')
+            echo "Rendering $dst from $src @ $start for $dur sec"
+            ffmpeg -hide_banner -loglevel error -stats -y \
+              -ss "$start" -i "src/$src" -t "$dur" \
+              -map 0:v:0 -map 0:a:0 \
+              -vf "crop=1215:2160:${crop_x}:0,scale=1080:1920:flags=lanczos,fps=24000/1001,format=yuv420p" \
+              -af "aresample=48000,dynaudnorm=f=250:g=5,afade=t=in:st=0:d=0.04,afade=t=out:st=${fade_out}:d=0.04" \
+              -c:v libx264 -preset veryfast -crf 19 -profile:v high -level 4.1 \
+              -pix_fmt yuv420p -r 24000/1001 -threads 2 -g 48 -keyint_min 48 -sc_threshold 0 \
+              -c:a aac -b:a 192k -ar 48000 -ac 2 -movflags +faststart \
+              "$dst"
+          }
 
-      - name: Build 15s behind-the-process reel
+          # 29-second cinematic BTS: booth -> recording -> control room -> late-session close.
+          make_clip 'DJI_20260809212135_0067_D.MP4' 0 5 1500 clips/c01.mp4
+          make_clip 'DJI_20260809212135_0067_D.MP4' 20 3 1500 clips/c02.mp4
+          make_clip 'DJI_20260809215119_0079_D.MP4' 0 4 1450 clips/c03.mp4
+          make_clip 'DJI_20260809215119_0079_D.MP4' 10 3 1500 clips/c04.mp4
+          make_clip 'DJI_20260809215712_0083_D.MP4' 0 4 1650 clips/c05.mp4
+          make_clip 'DJI_20260809214230_0077_D.MP4' 60 4 1450 clips/c06.mp4
+          make_clip 'DJI_20260809214230_0077_D.MP4' 170 4 1450 clips/c07.mp4
+          make_clip 'DJI_20260809221501_0088_D.MP4' 190 2 1450 clips/c08.mp4
+
+          # 15-second high-energy hero: strongest face/mic/action moments.
+          make_clip 'DJI_20260809212135_0067_D.MP4' 0 4 1500 clips/h01.mp4
+          make_clip 'DJI_20260809212135_0067_D.MP4' 29 2.5 1500 clips/h02.mp4
+          make_clip 'DJI_20260809214230_0077_D.MP4' 170 4 1450 clips/h03.mp4
+          make_clip 'DJI_20260809215305_0080_D.MP4' 30 3 1500 clips/h04.mp4
+          make_clip 'DJI_20260809215355_0081_D.MP4' 10 1.5 1500 clips/h05.mp4
+
+          # 15-second behind-the-process: mic/phone -> DAW -> engineer -> interaction.
+          make_clip 'DJI_20260809212135_0067_D.MP4' 20 3 1500 clips/p01.mp4
+          make_clip 'DJI_20260809215712_0083_D.MP4' 0 4 1650 clips/p02.mp4
+          make_clip 'DJI_20260809214230_0077_D.MP4' 60 4 1450 clips/p03.mp4
+          make_clip 'DJI_20260809215355_0081_D.MP4' 10 4 1500 clips/p04.mp4
+
+      - name: Assemble three reels
         shell: bash
         run: |
           set -euo pipefail
-          ffmpeg -hide_banner -y \
-            -i src/DJI_20260809212135_0067_D.MP4 \
-            -i src/DJI_20260809215712_0083_D.MP4 \
-            -i src/DJI_20260809214230_0077_D.MP4 \
-            -i src/DJI_20260809215355_0081_D.MP4 \
-            -filter_complex "\
-            [0:v]trim=20:23,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v0];\
-            [0:a]atrim=20:23,asetpts=PTS-STARTPTS[a0];\
-            [1:v]trim=0:4,setpts=PTS-STARTPTS,crop=1215:2160:1650:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v1];\
-            [1:a]atrim=0:4,asetpts=PTS-STARTPTS[a1];\
-            [2:v]trim=54:57,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v2];\
-            [2:a]atrim=54:57,asetpts=PTS-STARTPTS[a2];\
-            [2:v]trim=60:62.5,setpts=PTS-STARTPTS,crop=1215:2160:1450:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v3];\
-            [2:a]atrim=60:62.5,asetpts=PTS-STARTPTS[a3];\
-            [3:v]trim=10:12.5,setpts=PTS-STARTPTS,crop=1215:2160:1500:0,scale=1080:1920,fps=24000/1001,format=yuv420p[v4];\
-            [3:a]atrim=10:12.5,asetpts=PTS-STARTPTS[a4];\
-            [v0][a0][v1][a1][v2][a2][v3][a3][v4][a4]concat=n=5:v=1:a=1[v][a];\
-            [a]dynaudnorm=f=250:g=5[aout]" \
-            -map '[v]' -map '[aout]' -t 15 -c:v libx264 -preset medium -crf 18 -profile:v high \
-            -c:a aac -b:a 192k -movflags +faststart \
-            out/03_BEHIND_THE_PROCESS_15S_PASS1.mp4
+
+          cat > lists/cinematic.txt <<'EOF'
+          file '../clips/c01.mp4'
+          file '../clips/c02.mp4'
+          file '../clips/c03.mp4'
+          file '../clips/c04.mp4'
+          file '../clips/c05.mp4'
+          file '../clips/c06.mp4'
+          file '../clips/c07.mp4'
+          file '../clips/c08.mp4'
+          EOF
+
+          cat > lists/hero.txt <<'EOF'
+          file '../clips/h01.mp4'
+          file '../clips/h02.mp4'
+          file '../clips/h03.mp4'
+          file '../clips/h04.mp4'
+          file '../clips/h05.mp4'
+          EOF
+
+          cat > lists/process.txt <<'EOF'
+          file '../clips/p01.mp4'
+          file '../clips/p02.mp4'
+          file '../clips/p03.mp4'
+          file '../clips/p04.mp4'
+          EOF
+
+          ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i lists/cinematic.txt -c copy -movflags +faststart out/01_Cinematic_BTS_29s.mp4
+          ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i lists/hero.txt -c copy -movflags +faststart out/02_High_Energy_Hero_15s.mp4
+          ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i lists/process.txt -c copy -movflags +faststart out/03_Behind_The_Process_15s.mp4
 
       - name: QC outputs
+        shell: bash
         run: |
           set -euo pipefail
           for f in out/*.mp4; do
             echo "==== $f ===="
-            ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_name,width,height,r_frame_rate -of default=noprint_wrappers=1 "$f"
+            ffprobe -v error \
+              -show_entries format=duration,size \
+              -show_entries stream=codec_name,width,height,r_frame_rate,sample_rate,channels \
+              -of default=noprint_wrappers=1 "$f"
+            dims=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "$f")
+            test "$dims" = "1080x1920"
           done
+
+          d1=$(ffprobe -v error -show_entries format=duration -of csv=p=0 out/01_Cinematic_BTS_29s.mp4)
+          d2=$(ffprobe -v error -show_entries format=duration -of csv=p=0 out/02_High_Energy_Hero_15s.mp4)
+          d3=$(ffprobe -v error -show_entries format=duration -of csv=p=0 out/03_Behind_The_Process_15s.mp4)
+          awk -v d="$d1" 'BEGIN { exit !(d >= 28.5 && d <= 29.6) }'
+          awk -v d="$d2" 'BEGIN { exit !(d >= 14.5 && d <= 15.6) }'
+          awk -v d="$d3" 'BEGIN { exit !(d >= 14.5 && d <= 15.6) }'
 
       - name: Publish draft assets to GitHub Release
         run: |
